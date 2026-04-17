@@ -1,9 +1,3 @@
-Окей, вот тебе нормальный GitHub README, который можно сразу вставлять в репозиторий 👇
-
-
----
-
-📄 README.md
 
 # ⚔️ RPG Console Game (Node.js)
 
