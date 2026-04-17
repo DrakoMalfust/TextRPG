@@ -1,0 +1,120 @@
+// ========================= // 🔥 RPG ULTIMATE EDITION (DIABLO + MAP + CLASSES + MULTIPLAYER) // ========================= // Добавлено: // 🎒 Diablo-инвентарь (редкости + дроп) // 🗺 Карта + перемещение // 🧙 Классы (маг / воин / ассасин) // 🌐 PvP (WebSocket объяснение + сервер)
+
+// ========================= // 📦 DEPENDENCIES // ========================= // npm install readline-sync chalk@4 ws
+
+// ========================= // 📁 app.js // ========================= const { startGame } = require("./controllers/gameController"); startGame();
+
+// ========================= // 🧙 CLASSES SYSTEM // ========================= const CLASSES = { warrior: { hp: 120, attack: 12, stamina: 50 }, mage: { hp: 80, attack: 18, stamina: 60 }, assassin: { hp: 90, attack: 14, stamina: 70 } };
+
+// ========================= // 📁 models/player.js // ========================= class Player { constructor(name, classType) { const c = CLASSES[classType];
+
+this.name = name;
+    this.classType = classType;
+    this.hp = c.hp;
+    this.maxHp = c.hp;
+    this.attack = c.attack;
+    this.stamina = c.stamina;
+    this.gold = 50;
+
+    // 🎒 Diablo inventory
+    this.inventory = [];
+    this.weapon = null;
+    this.armor = null;
+
+    // 🗺 position
+    this.x = 0;
+    this.y = 0;
+}
+
+getAttack() {
+    return this.attack + (this.weapon?.attack || 0);
+}
+
+takeDamage(dmg) {
+    this.hp -= dmg;
+}
+
+}
+
+module.exports = Player;
+
+// ========================= // 🎒 DIABLO LOOT SYSTEM // ========================= const ITEMS = [ { name: "Rusty Sword", rarity: "common", attack: 3 }, { name: "Steel Sword", rarity: "rare", attack: 8 }, { name: "Shadow Blade", rarity: "epic", attack: 15 }, { name: "Dragon Slayer", rarity: "legendary", attack: 25 } ];
+
+function dropItem() { let roll = Math.random();
+
+if (roll < 0.6) return ITEMS[0];
+if (roll < 0.85) return ITEMS[1];
+if (roll < 0.97) return ITEMS[2];
+return ITEMS[3];
+
+}
+
+module.exports = { dropItem };
+
+// ========================= // 🗺 MAP SYSTEM // ========================= const MAP_SIZE = 5;
+
+function renderMap(player) { for (let y = 0; y < MAP_SIZE; y++) { let row = ""; for (let x = 0; x < MAP_SIZE; x++) { if (player.x === x && player.y === y) row += " P "; else row += " . "; } console.log(row); } }
+
+function movePlayer(player, dir) { if (dir === "w") player.y--; if (dir === "s") player.y++; if (dir === "a") player.x--; if (dir === "d") player.x++;
+
+player.x = Math.max(0, Math.min(MAP_SIZE - 1, player.x));
+player.y = Math.max(0, Math.min(MAP_SIZE - 1, player.y));
+
+}
+
+module.exports = { renderMap, movePlayer };
+
+// ========================= // 🌐 MULTIPLAYER (WebSocket) // ========================= // server.js (ОТДЕЛЬНЫЙ ФАЙЛ) const WebSocket = require("ws");
+
+const wss = new WebSocket.Server({ port: 3000 }); let players = [];
+
+wss.on("connection", (ws) => { console.log("Player connected");
+
+ws.on("message", (msg) => {
+    const data = JSON.parse(msg);
+
+    // 📡 синхронизация действий
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(data));
+        }
+    });
+});
+
+});
+
+// ========================= // 🌐 КАК РАБОТАЕТ WEBSOCKET // ========================= /* WebSocket = постоянное соединение между игроками
+
+1. Клиент подключается к серверу
+
+
+2. Сервер НЕ закрывает соединение
+
+
+3. Все действия отправляются как сообщения
+
+
+4. Сервер пересылает их всем игрокам
+
+
+
+👉 это как "живой чат", но для игры
+
+Пример: Player1 атакует -> сервер -> Player2 получает урон */
+
+// ========================= // 🧙 CLASS EFFECT EXAMPLE // ========================= function applyClassBonus(player) { if (player.classType === "mage") player.attack += 5; if (player.classType === "assassin") player.stamina += 10; if (player.classType === "warrior") player.hp += 20; }
+
+// ========================= // 🎮 GAME LOOP IDEA // ========================= /*
+
+explore map
+
+random encounter
+
+loot drop
+
+boss fight
+
+PvP (future) */
+
+
+module.exports = { Player, dropItem, renderMap, movePlayer, applyClassBonus };
