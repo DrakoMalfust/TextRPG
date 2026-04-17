@@ -27,3 +27,7 @@ npm-debug.log*
 # Environment
 # =========================
 .env
+
+dist/
+build/
+coverage/
