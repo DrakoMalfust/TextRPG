@@ -9,13 +9,13 @@ let player;
 
 // ===================== START =====================
 function startGame() {
-    ui.info("=== RPG SOULS EDITION ===");
+    ui.info("=== Text-RPG Souls Edition ===");
 
     const save = loadGame();
-    if (save && readline.question("Load save? y/n: ") === "y") {
+    if (save && readline.question("Загрузить сохранение? y/n: ") === "y") {
         player = Object.assign(new Player(), save);
     } else {
-        player = new Player(readline.question("Name: "));
+        player = new Player(readline.question("Введите ваше имя: "));
     }
 
     mainMenu();
@@ -25,9 +25,9 @@ function startGame() {
 function mainMenu() {
     ui.log(`\nHP:${player.hp} ST:${player.stamina} GOLD:${player.gold}`);
 
-    console.log("1. Fight");
-    console.log("2. Boss");
-    console.log("3. Save");
+    console.log("1. Бой");
+    console.log("2. Босс");
+    console.log("3. Сохранение");
     console.log("4. Exit");
 
     const c = readline.question("> ");
@@ -52,6 +52,7 @@ function fight() {
 
     while (enemy.hp > 0 && player.hp > 0) {
         ui.log(`\nHP:${player.hp} ST:${player.stamina}`);
+        ui.log(`${enemy.name}`)
         ui.log(`Enemy:${enemy.hp}`);
 
         console.log("1. Light");
