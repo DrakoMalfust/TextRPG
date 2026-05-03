@@ -6,6 +6,10 @@ class Enemy {
         this.style = style;
     }
 
+    getAttack() {
+        return this.attack;
+    }
+
     act(player) {
         // 🧠 агрессивный AI
         if (this.style === "aggressive") {

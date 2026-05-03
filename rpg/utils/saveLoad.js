@@ -1,12 +1,18 @@
 const fs = require("fs");
 
 function saveGame(player) {
-    fs.writeFileSync("save.json", JSON.stringify(player, null, 2));
+    const saveData = {
+        ...player,
+        inventory: player.inventory,
+        stats: player.stats
+    };
+    fs.writeFileSync("save.json", JSON.stringify(saveData, null, 2));
 }
 
 function loadGame() {
     if (fs.existsSync("save.json")) {
-        return JSON.parse(fs.readFileSync("save.json"));
+        const data = JSON.parse(fs.readFileSync("save.json"));
+        return new Player(data.name, data);
     }
     return null;
 }
