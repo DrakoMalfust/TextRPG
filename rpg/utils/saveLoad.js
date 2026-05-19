@@ -1,10 +1,27 @@
+// utils/saveLoad.js
 const fs = require("fs");
+const Player = require("../models/player");
 
 function saveGame(player) {
     const saveData = {
-        ...player,
+        name: player.name,
+        hp: player.hp,
+        maxHp: player.maxHp,
+        strength: player.strength,
+        dexterity: player.dexterity,
+        proficiencyBonus: player.proficiencyBonus,
+        attackBonus: player.attackBonus,
+        stamina: player.stamina,
+        gold: player.gold,
+        level: player.level,
+        exp: player.exp,
+        nextLevelExp: player.nextLevelExp,
+        stats: player.stats,
         inventory: player.inventory,
-        stats: player.stats
+        backpack: player.backpack,
+        armorBonus: player.armorBonus,
+        shieldBonus: player.shieldBonus,
+        baseArmor: player.baseArmor
     };
     fs.writeFileSync("save.json", JSON.stringify(saveData, null, 2));
 }
@@ -12,7 +29,12 @@ function saveGame(player) {
 function loadGame() {
     if (fs.existsSync("save.json")) {
         const data = JSON.parse(fs.readFileSync("save.json"));
-        return new Player(data.name, data);
+        const player = new Player(data.name);
+        // Копируем все сохранённые поля, но не перезаписываем методы
+        Object.assign(player, data);
+        // Пересчитываем AC после загрузки брони
+        if (player.recalculateArmor) player.recalculateArmor();
+        return player;
     }
     return null;
 }

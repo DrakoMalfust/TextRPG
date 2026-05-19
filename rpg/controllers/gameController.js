@@ -1,10 +1,11 @@
+// gameController.js
 const readline = require("readline-sync");
 const Player = require("../models/player");
-const Enemy = require("../models/enemy");
+const { getRandomEnemy } = require("../data/enemies");
 const { getRandomItem } = require("../models/items");
 const ui = require("../views/ui");
 const { saveGame, loadGame } = require("../utils/saveLoad");
-
+const { d20, rollDice } = require("../utils/dice");
 
 let player;
 
@@ -14,7 +15,7 @@ function startGame() {
 
     const save = loadGame();
     if (save && readline.question("Загрузить сохранение? y/n: ") === "y") {
-        player = Object.assign(new Player(), save);
+        player = save;
     } else {
         player = new Player(readline.question("Введите ваше имя: "));
     }
@@ -24,36 +25,46 @@ function startGame() {
 
 // ===================== MENU =====================
 function mainMenu() {
-    
     ui.log("\nВыберите действие:");
-    ui.log("1. Исследовать подземелье");
-    ui.log("2. Посмотреть статистику");
-    ui.log("3. Открыть инвентарь");
-    ui.log("4. Сохранить игру");
-    ui.log("5. Выход");
-    
-    const choice = readline.question("> ");
-    
-    switch(choice) {
-        case '1': 
-            exploreDungeon(player);
+    ui.log("1/e. Исследовать подземелье");
+    ui.log("2/s. Посмотреть статистику");
+    ui.log("3/i. Открыть инвентарь");
+    ui.log("4/g. Сохранить игру");
+    ui.log("5/q. Выход");
+
+    const choice = readline.question("> ").toLowerCase();
+
+    switch (choice) {
+        case '1':
+        case 'e':
+            exploreDungeon();
             break;
-        case '2': 
-            displayStats();
+        case '2':
+        case 's':
+            ui.displayStats(player);
             readline.question("\nНажмите Enter для возврата...");
             mainMenu();
             break;
-        case '3': 
-            displayInventory();
+        case '3':
+        case 'i':
             handleInventory();
             break;
         case '4':
+        case 'g':
             saveGame(player);
             ui.success("Игра сохранена!");
             mainMenu();
             break;
         case '5':
-            process.exit();
+        case 'q':
+            const confirm = readline.question("Вы уверены, что хотите выйти? (y/n): ");
+            if (confirm.toLowerCase() === 'y') {
+                ui.log("Спасибо за игру! До встречи.");
+                process.exit();
+            } else {
+                ui.info("Продолжаем игру.");
+                mainMenu();
+            }
             break;
         default:
             ui.danger("Неверный выбор!");
@@ -61,22 +72,24 @@ function mainMenu() {
     }
 }
 
+// ========== ИНВЕНТАРЬ ==========
 function handleInventory() {
+    ui.displayInventory(player);
     ui.log("\nУправление инвентарем:");
-    ui.log("1. Экипировать предмет");
-    ui.log("2. Снять предмет");
+    ui.log("1. Экипировать предмет из рюкзака");
+    ui.log("2. Снять экипированный предмет");
     ui.log("3. Вернуться в меню");
-    
+
     const choice = readline.question("> ");
-    
-    switch(choice) {
-        case '1': 
+
+    switch (choice) {
+        case '1':
             equipItem();
             break;
-        case '2': 
-            unequipItem();
+        case '2':
+            unequipItemMenu();
             break;
-        case '3': 
+        case '3':
             mainMenu();
             break;
         default:
@@ -86,378 +99,282 @@ function handleInventory() {
 }
 
 function equipItem() {
-    // Логика экипировки предметов
-    // TODO: Реализовать выбор предмета из инвентаря
-    // TODO: Проверка ограничений на экипировку
+    if (player.backpack.length === 0) {
+        ui.danger("Рюкзак пуст!");
+        return handleInventory();
+    }
+
+    ui.log("\nВыберите предмет для экипировки:");
+    player.backpack.forEach((item, idx) => {
+        ui.log(`${idx + 1}. ${item.name} (${item.type}) | Атака: ${item.attack || 0} | Защита: ${item.defense || 0}`);
+    });
+    ui.log("0. Назад");
+
+    const idx = parseInt(readline.question("> ")) - 1;
+    if (isNaN(idx) || idx < -1) return equipItem();
+    if (idx === -1) return handleInventory();
+
+    if (idx >= 0 && idx < player.backpack.length) {
+        player.equipItemFromBackpack(idx);
+    } else {
+        ui.danger("Неверный номер!");
+    }
     handleInventory();
 }
 
-function unequipItem() {
-    // Логика снятия предметов
-    // TODO: Реализовать выбор предмета для снятия
+function unequipItemMenu() {
+    ui.log("\nЧто снять?");
+    ui.log("1. Шлем");
+    ui.log("2. Броня");
+    ui.log("3. Ботинки");
+    ui.log("4. Кольцо");
+    ui.log("5. Оружие");
+    ui.log("0. Назад");
+
+    const choice = readline.question("> ");
+    if (choice === "0") return handleInventory();
+
+    let type = "";
+    switch (choice) {
+        case "1": type = "head"; break;
+        case "2": type = "armor"; break;
+        case "3": type = "boots"; break;
+        case "4": type = "ring"; break;
+        case "5": type = "weapon"; break;
+        default: ui.danger("Неверно!"); return unequipItemMenu();
+    }
+
+    if (type === "ring" && player.inventory.rings.length > 0) {
+        ui.log("Выберите кольцо:");
+        player.inventory.rings.forEach((r, i) => ui.log(`${i + 1}. ${r.name}`));
+        const ringIdx = parseInt(readline.question("> ")) - 1;
+        if (!isNaN(ringIdx) && ringIdx >= 0 && ringIdx < player.inventory.rings.length) {
+            player.unequipItem("ring", ringIdx);
+        }
+    } else if (type === "weapon" && player.inventory.weapons.length > 0) {
+        ui.log("Выберите оружие:");
+        player.inventory.weapons.forEach((w, i) => ui.log(`${i + 1}. ${w.name}`));
+        const weapIdx = parseInt(readline.question("> ")) - 1;
+        if (!isNaN(weapIdx) && weapIdx >= 0 && weapIdx < player.inventory.weapons.length) {
+            player.unequipItem("weapon", weapIdx);
+        }
+    } else {
+        player.unequipItem(type);
+    }
     handleInventory();
 }
 
+// ===================== БОЕВЫЕ ФУНКЦИИ =====================
+let turnsSinceLastHeal = 3;
 
+function playerAttack(attacker, defender, enemyObj) {
+    const attackRoll = d20() + attacker.getAttackModifier();
+    ui.log(`🎲 Бросок атаки: ${attackRoll} (нужно ${defender.ac})`);
 
-// =================Ui=============================
-function displayBattleUI(turn, player, enemy) {
-    ui.log(`\nХод: ${turn}`);
-    ui.log(`--------------------------------`);
-    ui.log(`👥 ${player.name}`);
-    ui.log(`🧠 HP: ${player.hp}/${player.maxHp}`);
-    ui.log(`--------------------------------`);
-    ui.log(`👿 ${enemy.name}`);
-    ui.log(`💀 HP: ${enemy.hp}`);
-    ui.log(`--------------------------------`);
-    
-    ui.log('\nВыберите действие:');
-    ui.log('1. Ударить');
-    ui.log('2. Похилиться');
-    ui.log('3. Защититься');
-    ui.log('4. Сбежать');
-}
-
-
-function displayStats() {
-    ui.log(`\n--- Статистика ---`);
-    ui.log(`Имя: ${player.name}`);
-    ui.log(`Уровень: ${player.level}`);
-    ui.log(`HP: ${player.hp}/${player.maxHp}`);
-    ui.log(`Атака: ${player.getAttack()}`);
-    ui.log(`Защита: ${player.getDefense()}`);
-    ui.log(`Золото: ${player.gold}`);
-    ui.log(`EXP: ${player.exp}/${player.nextLevelExp}`);
-}
-
-function displayInventory() {
-    ui.log(`\n--- Инвентарь ---`);
-    ui.log(`Шлем: ${player.inventory.head?.name || 'Нет'}`);
-    ui.log(`Броня: ${player.inventory.armor?.name || 'Нет'}`);
-    ui.log(`Ботинки: ${player.inventory.boots?.name || 'Нет'}`);
-    ui.log(`Кольца: ${player.inventory.rings.map(r => r.name).join(', ') || 'Нет'}`);
-    ui.log(`Оружие: ${player.inventory.weapons.map(w => w.name).join(', ') || 'Нет'}`);
-}
-
-function displayLockUI(pattern, attempts) {
-    ui.log("\n--- Взлом замка ---");
-    ui.log(`Попытки осталось: ${attempts}`);
-    ui.log(`Состояние замка: ${pattern.join(' ')}`);
-}
-//==================================================
-
-
-// ===================== FIGHT =====================
-class DungeonEvent {
-    constructor(name) {
-        this.name = name;
+    if (attackRoll === 20) {
+        ui.success("КРИТИЧЕСКОЕ ПОПАДАНИЕ!");
+        const damageRoll = rollDice(defender.damageDice) + defender.damageBonus;
+        const critDamage = damageRoll + rollDice(defender.damageDice);
+        defender.currentHp -= critDamage;
+        ui.danger(`${attacker.name} наносит ${critDamage} критического урона!`);
+        return;
     }
 
-    trigger(player) {
-        throw new Error("Метод должен быть переопределен");
+    if (attackRoll >= defender.ac) {
+        const damage = rollDice(defender.damageDice) + defender.damageBonus;
+        defender.currentHp -= damage;
+        ui.danger(`${attacker.name} наносит ${damage} урона!`);
+    } else {
+        ui.info("Промах!");
     }
 }
 
-class CombatEvent extends DungeonEvent {
-    constructor() {
-        super("Бой с монстрами");
-        this.enemy = new Enemy(
-            "Случайный монстр",
-            Math.floor(Math.random() * 50) + 50,
-            Math.floor(Math.random() * 5) + 5,
-            Math.floor(Math.random() * 3),
-            Math.random() > 0.5 ? "aggressive" : "defensive"
-        );
+function enemyAttack(enemy, playerObj) {
+    const enemyAttackBonus = 3;
+    const attackRoll = d20() + enemyAttackBonus;
+    ui.log(`🎲 Враг атакует: ${attackRoll} (нужно ${playerObj.getArmorClass()})`);
+
+    if (attackRoll === 20) {
+        ui.danger("КРИТИЧЕСКОЕ ПОПАДАНИЕ ОТ ВРАГА!");
+        const damageRoll = rollDice(enemy.damageDice) + enemy.damageBonus;
+        const critDamage = damageRoll + rollDice(enemy.damageDice);
+        playerObj.hp -= critDamage;
+        ui.danger(`${enemy.name} наносит ${critDamage} критического урона!`);
+        return;
     }
 
-    trigger(player) {
-        // Логика боя
-        while (this.enemy.hp > 0 && player.hp > 0) {
-            // UI отображение
-            displayBattleUI(player, this.enemy);
-            
-            const choice = readline.question("> ");
-            
-            switch(choice) {
-                case '1': // Атака
-                    attack(player, this.enemy);
-                    break;
-                case '2': // Отдых
-                    player.hp += Math.floor(player.maxHp * 0.1);
-                    break;
-                case '3': // Защита
-                    const dice = Math.floor(Math.random() * 20) + 1;
-                    if (dice <= 10) {
-                        // Не защитился
-                        this.enemy.act(player);
-                    } else if (dice <= 16) {
-                        // Успешная защита
-                    } else if (dice <= 19) {
-                        // Парировал и атаковал
-                        attack(player, this.enemy);
-                    } else {
-                        // Смертельный удар
-                        this.enemy.hp = 0;
-                    }
-                    break;
-            }
-            
-            if (this.enemy.hp > 0) {
-                this.enemy.act(player);
-            }
-        }
-        
-        if (this.enemy.hp <= 0) {
-            ui.success("Победа!");
-            player.addExp(this.enemy.hp * 2);
-            player.gold += Math.floor(this.enemy.hp / 2);
-        }
-    }
-}
-class RunePuzzleEvent extends DungeonEvent {
-    constructor() {
-        super("Ребус с рунами");
-        this.word = ["Г", "О", "Л", "Д"];
-    }
-
-    trigger(player) {
-        let guessed = false;
-        let attempts = 3;
-        
-        while (attempts > 0 && !guessed) {
-            const guess = readline.question("Угадайте букву: ").toUpperCase();
-            
-            if (this.word.includes(guess)) {
-                ui.success("Правильно!");
-                guessed = true;
-                player.addExp(50);
-            } else {
-                attempts--;
-                ui.danger("Неверно!");
-                player.hp -= 10;
-            }
-        }
+    if (attackRoll >= playerObj.getArmorClass()) {
+        const damage = rollDice(enemy.damageDice) + enemy.damageBonus;
+        playerObj.hp -= damage;
+        ui.danger(`${enemy.name} наносит ${damage} урона!`);
+    } else {
+        ui.info("Вы увернулись!");
     }
 }
 
-class LockPickingEvent extends DungeonEvent {
-    constructor(difficulty) {
-        super("Взлом замка");
-        this.pattern = [];
-        this.difficulty = difficulty;
-        
-        switch(difficulty) {
-            case 'easy': 
-                this.pattern = [1, 0, 1];
-                break;
-            case 'medium': 
-                this.pattern = [1, 0, 1, 0, 1];
-                break;
-            case 'hard': 
-                this.pattern = [1, 0, 1, 0, 1, 0, 1];
-                break;
-        }
-    }
-
-    trigger(player) {
-        let attempts = 3;
-        let solved = false;
-        const uiPattern = new Array(this.pattern.length).fill('-');
-        
-        while (attempts > 0 && !solved) {
-            // Передаем attempts в функцию отображения
-            displayLockUI(uiPattern, attempts);
-            const move = readline.question("Выберите действие (1 - вправо, 0 - влево): ");
-            
-            if (move === this.pattern[0]) {
-                uiPattern[0] = move;
-                this.pattern.shift();
-                if (this.pattern.length === 0) {
-                    solved = true;
-                    ui.success("Замок открыт!");
-                    player.addExp(75);
-                }
-            } else {
-                attempts--;
-                ui.danger("Неверное движение!");
-            }
-        }
-        
-        if (!solved) {
-            ui.danger("Вы потратили все попытки!");
-        }
-    }
-}
-
-
-class HealingWellEvent extends DungeonEvent {
-    constructor() {
-        super("Целебный колодец");
-    }
-
-    trigger(player) {
-        const healAmount = Math.floor(player.maxHp * 0.2);
+function healPlayer() {
+    if (turnsSinceLastHeal >= 2) {
+        const healAmount = Math.floor(player.maxHp * 0.3);
         player.hp = Math.min(player.maxHp, player.hp + healAmount);
-        ui.success(`Вы восстановили ${healAmount} HP!`);
-        player.addExp(25);
+        ui.success(`Вы восстановили ${healAmount} HP.`);
+        turnsSinceLastHeal = 0;
+    } else {
+        ui.danger(`Лечение будет доступно через ${3 - turnsSinceLastHeal} ход(а).`);
     }
 }
 
-
-class Dungeon {
-    constructor() {
-        this.events = [
-            new CombatEvent(),
-            new RunePuzzleEvent(),
-            new LockPickingEvent('easy'),
-            new HealingWellEvent()
-        ];
+function tryEscape() {
+    if (Math.random() > 0.5) {
+        ui.success("Вы сбежали!");
+        return true;
     }
-
-    generateEvent() {
-        const randomEvent = this.events[Math.floor(Math.random() * this.events.length)];
-        return randomEvent;
-    }
+    ui.danger("Побег не удался!");
+    return false;
 }
 
-function exploreDungeon(player) {
-    const dungeon = new Dungeon();
+// ===================== ИВЕНТЫ =====================
+function createCombatEvent() {
+    const enemy = getRandomEnemy();
+    return {
+        name: "Бой с монстрами",
+        trigger: (playerObj) => {
+            let escaped = false;
+            turnsSinceLastHeal = 3;
+            let tempACBonus = 0;
+
+            while (enemy.currentHp > 0 && playerObj.hp > 0 && !escaped) {
+                ui.displayBattleUI(playerObj, enemy);
+                const choice = readline.question("> ");
+
+                switch (choice) {
+                    case '1':
+                        playerAttack(playerObj, enemy, enemy);
+                        break;
+                    case '2':
+                        healPlayer();
+                        break;
+                    case '3':
+                        ui.info("Вы приготовились защищаться (+2 AC до следующего хода)");
+                        tempACBonus = 2;
+                        break;
+                    case '4':
+                        if (tryEscape()) escaped = true;
+                        break;
+                    default:
+                        ui.danger("Неверный выбор!");
+                }
+
+                if (enemy.currentHp > 0 && !escaped && playerObj.hp > 0) {
+                    const originalGetAC = playerObj.getArmorClass;
+                    if (tempACBonus > 0) {
+                        playerObj.getArmorClass = () => originalGetAC.call(playerObj) + tempACBonus;
+                    }
+                    enemyAttack(enemy, playerObj);
+                    if (tempACBonus > 0) {
+                        playerObj.getArmorClass = originalGetAC;
+                        tempACBonus = 0;
+                    }
+                }
+                turnsSinceLastHeal++;
+            }
+
+            if (!escaped && enemy.currentHp <= 0) {
+                ui.success("Победа!");
+                const expGain = enemy.expDrop;
+                const goldGain = enemy.goldDrop;
+                playerObj.addExp(expGain);
+                playerObj.gold += goldGain;
+                ui.success(`Получено ${expGain} опыта и ${goldGain} золота`);
+                if (Math.random() < 0.6) {
+                    const item = getRandomItem();
+                    if (item) playerObj.addItem(item);
+                }
+            }
+        }
+    };
+}
+
+function createHealingWellEvent() {
+    return {
+        name: "Целебный колодец",
+        trigger: (playerObj) => {
+            const healAmount = Math.floor(playerObj.maxHp * 0.2);
+            playerObj.hp = Math.min(playerObj.maxHp, playerObj.hp + healAmount);
+            ui.success(`Вы восстановили ${healAmount} HP!`);
+            playerObj.addExp(25);
+        }
+    };
+}
+
+function createLockPickingEvent(difficulty = 'medium') {
+    let pattern = [];
+    switch (difficulty) {
+        case 'easy': pattern = [1, 0, 1]; break;
+        case 'medium': pattern = [1, 0, 1, 0, 1]; break;
+        case 'hard': pattern = [1, 0, 1, 0, 1, 0, 1]; break;
+        default: pattern = [1, 0, 1, 0, 1];
+    }
+    const originalPattern = [...pattern];
+    let currentIndex = 0;
+    let attempts = 3;
+
+    return {
+        name: "Взлом замка",
+        trigger: (playerObj) => {
+            let solved = false;
+            while (attempts > 0 && !solved) {
+                const display = originalPattern.map((_, idx) => idx < currentIndex ? originalPattern[idx] : undefined);
+                ui.displayLockUI(display, attempts, originalPattern.length);
+                const move = readline.question("Выберите движение (1 - вправо, 0 - влево): ");
+                const userMove = move === "1" ? 1 : (move === "0" ? 0 : null);
+
+                if (userMove === null) {
+                    ui.danger("Введите 1 или 0!");
+                    continue;
+                }
+
+                if (userMove === originalPattern[currentIndex]) {
+                    ui.success("Правильно!");
+                    currentIndex++;
+                    if (currentIndex === originalPattern.length) {
+                        solved = true;
+                        ui.success("Замок открыт! Вы нашли сокровище.");
+                        playerObj.addExp(75);
+                        playerObj.gold += 50;
+                    }
+                } else {
+                    attempts--;
+                    ui.danger(`Неверно! Осталось попыток: ${attempts}`);
+                    if (attempts === 0) {
+                        ui.danger("Вы сломали замок... Ничего не получено.");
+                    }
+                }
+            }
+        }
+    };
+}
+
+const eventFactories = [
+    () => createCombatEvent(),
+    () => createLockPickingEvent('medium'),
+    () => createHealingWellEvent()
+];
+
+function exploreDungeon() {
     let continueExploring = true;
-    
     while (continueExploring && player.hp > 0) {
-        const event = dungeon.generateEvent();
+        const randomFactory = eventFactories[Math.floor(Math.random() * eventFactories.length)];
+        const event = randomFactory();
         ui.log(`\nВы натыкаетесь на: ${event.name}`);
         event.trigger(player);
-        
+
+        if (player.hp <= 0) {
+            ui.danger("Вы погибли...");
+            process.exit();
+        }
+
         continueExploring = readline.question("Продолжить исследование? (y/n): ") === 'y';
     }
-    
-    if (player.hp <= 0) {
-        ui.danger("Вы погибли...");
-        process.exit();
-    }
-    
-    mainMenu();
-}
-
-
-
-function attack(attacker, defender) {
-    let damage;
-    
-    if (attacker instanceof Player) {
-        damage = attacker.getAttack();
-    } else if (attacker instanceof Enemy) {
-        damage = attacker.attack; // Используем базовую атаку врага
-    } else {
-        throw new Error("Неизвестный атакующий");
-    }
-    
-    defender.hp -= damage;
-    ui.danger(`${attacker.name} наносит ${damage} урона!`);
-}
-
-function heal(player) {
-    if (player.gold >= 10) {
-        player.gold -= 10;
-        const healAmount = Math.floor(player.maxHp * 0.2);
-        player.hp = Math.min(player.maxHp, player.hp + healAmount);
-        ui.success(`Восстановление ${healAmount} HP`);
-    } else {
-        ui.danger('Недостаточно золота для лечения!');
-    }
-}
-
-function defend(player) {
-    player.defense += 2;
-    ui.info('Вы перешли в защитную стойку!');
-}
-
-function tryEscape(player, enemy) {
-    const escapeChance = Math.random();
-    if (escapeChance > 0.5) {
-        ui.success('Вам удалось сбежать!');
-        return mainMenu();
-    } else {
-        ui.danger('Побег не удался!');
-        return false;
-    }
-}
-
-
-function enemyTurn(enemy, player) {
-    const action = enemy.act(player);
-    switch(action) {
-        case 'attack':
-            attack(enemy, player); // Теперь используем общую функцию атаки
-            break;
-        case 'wait':
-            ui.info('Враг медлит...');
-            break;
-    }
-}
-
-
-// ===================== BOSS (SOULS PHASES) =====================
-function bossFight() {
-    let boss = {
-        name: "Падший рыцарь",
-        hp: 120,
-        attack: 12,
-        phase: 1
-    };
-
-    console.log("\n🔥 BOSS:", boss.name);
-
-    while (boss.hp > 0 && player.hp > 0) {
-        ui.log(`HP:${player.hp} ST:${player.stamina}`);
-        ui.log(`BOSS:${boss.hp} PHASE:${boss.phase}`);
-
-        console.log("1. Light");
-        console.log("2. Heavy");
-        console.log("3. Dodge");
-
-        let choice = readline.question("> ");
-        let dodged = false;
-
-        if (choice === "1") {
-            boss.hp -= player.getAttack();
-            player.stamina -= 10;
-        }
-
-        if (choice === "2") {
-            boss.hp -= player.getAttack() * 2;
-            player.stamina -= 20;
-        }
-
-        if (choice === "3") {
-            dodged = Math.random() > 0.5;
-            player.stamina -= 15;
-        }
-
-        // ⚡ PHASE CHANGE
-        if (boss.hp < 60 && boss.phase === 1) {
-            boss.phase = 2;
-            boss.attack += 8;
-            console.log("🔥 БОСС ВХОДИТ В 2 ФАЗУ!");
-        }
-
-        if (boss.hp > 0 && !dodged) {
-            const dmg = player.takeDamage(boss.attack);
-            ui.danger(`-${dmg}`);
-        }
-
-        player.stamina = Math.min(50, player.stamina + 5);
-    }
-
-    if (player.hp <= 0) {
-        console.log("Ты умер 💀");
-        process.exit();
-    }
-
-    console.log("🏆 БОСС ПОВЕРЖЕН!");
-    player.gold += 100;
-
     mainMenu();
 }
 
