@@ -1,5 +1,6 @@
 // views/ui.js
 const chalk = require("chalk");
+const stringWidth = require('string-width').default;
 
 module.exports = {
     log: console.log,
@@ -34,11 +35,10 @@ module.exports = {
 
     // ========== UI для статистики ==========
     displayStats(player) {
-        // Формируем строки содержимого
         const lines = [
             `Имя: ${player.name}`,
             `Уровень: ${player.level}`,
-            `❤️ ${this.getHealthBar(player.hp, player.maxHp, 15)} ${player.hp}/${player.maxHp}`,
+            `HP ${this.getHealthBar(player.hp, player.maxHp, 15)} ${player.hp}/${player.maxHp} `,
             `Класс брони (AC): ${player.getArmorClass()}`,
             `Модификатор атаки: +${player.getAttackModifier()}`,
             `Золото: ${player.gold}`,
@@ -47,15 +47,19 @@ module.exports = {
             `Ловкость: ${player.dexterity} (${Math.floor((player.dexterity - 10) / 2)})`
         ];
 
-        // Находим максимальную длину строки (учитываем, что эмодзи считаются за 1 символ)
-        const maxLen = Math.max(...lines.map(l => l.length), 25);
+        // Вычисляем реальную ширину каждой строки (с учётом эмодзи)
+        const widths = lines.map(l => stringWidth(l));
+        const maxLen = Math.max(...widths, 20);
         const horizontal = '─'.repeat(maxLen + 2);
 
         this.log(`┌${horizontal}┐`);
         this.log(`│ ${'СТАТИСТИКА'.padEnd(maxLen)} │`);
         this.log(`├${horizontal}┤`);
-        for (let line of lines) {
-            this.log(`│ ${line.padEnd(maxLen)} │`);
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const currentWidth = stringWidth(line);
+            const padding = maxLen - currentWidth;
+            this.log(`│ ${line}${' '.repeat(padding)} │`);
         }
         this.log(`└${horizontal}┘`);
     },

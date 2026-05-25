@@ -89,14 +89,7 @@ function handleInventory() {
     const perPage = 7;
     let inventoryPage = 0
     ui.displayInventory(player, inventoryPage, perPage);
-    ui.log("\nУправление инвентарем:");
-    ui.log("1. Экипировать предмет из рюкзака");
-    ui.log("2. Снять экипированный предмет");
-    ui.log("3. Вернуться в меню");
-    if (player.backpack.length > perPage) {
-        ui.log("N. Следующая страница");
-        ui.log("P. Предыдущая страница");
-    }
+
     ui.drawStatusBar('inventory');
     const choice = readline.question("> ").toLowerCase();
 

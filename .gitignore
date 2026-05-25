@@ -10,6 +10,12 @@ save.json
 *.save.json
 
 # =========================
+#  Others
+# =========================
+eslint.config.mjs
+test.js
+splash.js
+# =========================
 # Logs
 # =========================
 logs/
