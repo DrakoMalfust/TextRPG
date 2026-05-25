@@ -9,17 +9,17 @@ const enemies = [
         damageBonus: 1,
         goldDrop: 5,
         expDrop: 25,
-        weight: 60           // 60% шанс
+        weight: 1           // 60% шанс
     },
     {
-        name: "Скелет-стражник",
+        name: "Скелет-стражник", 
         hp: 20,
         ac: 14,
         damageDice: "1d6",
         damageBonus: 2,
         goldDrop: 10,
         expDrop: 50,
-        weight: 25
+        weight: 2
     },
     {
         name: "Орк-берсерк",
@@ -29,7 +29,7 @@ const enemies = [
         damageBonus: 3,
         goldDrop: 20,
         expDrop: 100,
-        weight: 10
+        weight: 3
     },
     {
         name: "Призрачный рыцарь",
@@ -44,12 +44,12 @@ const enemies = [
     {
         name: "Древний дракончик",
         hp: 80,
-        ac: 18,
-        damageDice: "2d6",
+        ac: 20,
+        damageDice: "3d8",
         damageBonus: 5,
         goldDrop: 200,
         expDrop: 500,
-        weight: 1
+        weight: 100
     }
 ];
 
