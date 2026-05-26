@@ -49,7 +49,7 @@ const enemies = [
         damageBonus: 5,
         goldDrop: 200,
         expDrop: 500,
-        weight: 100
+        weight: 1
     }
 ];
 

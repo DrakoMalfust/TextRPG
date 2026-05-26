@@ -23,7 +23,7 @@ let player;
 
 // ===================== START =====================
 function startGame() {
-    ui.info("=== Text-RPG Souls Edition ===");
+    ui.info(`⚔️=== Legend's of Eretrium ===⚔️`);
 
     const save = loadGame();
     if (save && readline.question("Загрузить сохранение? y/n: ") === "y") {
