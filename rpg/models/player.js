@@ -55,6 +55,7 @@ class Player {
 
     // ========== ПРОКАЧКА ==========
     levelUp() {
+        this.exp = 0
         this.level++;
         this.stats.hpBonus += 10;
         this.attackBonus += 1;
