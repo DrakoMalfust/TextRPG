@@ -1,0 +1,292 @@
+Да, давай сразу сделаем версию, которую не стыдно показать заказчику.
+
+products.json
+
+Для MVP лучше не 2 товара, а хотя бы 6–8. Иначе выглядит как тестовый проект.
+
+[
+  {
+    "id": 1,
+    "name": "Классический бургер",
+    "description": "Говяжья котлета, сыр чеддер, томаты, салат",
+    "price": 350,
+    "category": "burgers",
+    "image": "burger.jpg"
+  },
+  {
+    "id": 2,
+    "name": "Двойной чизбургер",
+    "description": "Две котлеты, двойной сыр, фирменный соус",
+    "price": 490,
+    "category": "burgers",
+    "image": "double-cheese.jpg"
+  },
+  {
+    "id": 3,
+    "name": "Картофель фри",
+    "description": "Хрустящий картофель",
+    "price": 180,
+    "category": "sides",
+    "image": "fries.jpg"
+  },
+  {
+    "id": 4,
+    "name": "Наггетсы 6 шт",
+    "description": "Куриные наггетсы",
+    "price": 220,
+    "category": "sides",
+    "image": "nuggets.jpg"
+  },
+  {
+    "id": 5,
+    "name": "Кола 0.5",
+    "description": "Газированный напиток",
+    "price": 120,
+    "category": "drinks",
+    "image": "cola.jpg"
+  },
+  {
+    "id": 6,
+    "name": "Молочный коктейль",
+    "description": "Ванильный коктейль",
+    "price": 240,
+    "category": "drinks",
+    "image": "shake.jpg"
+  }
+]
+
+
+---
+
+Улучшим Order.js
+
+export class Order {
+
+    constructor(
+        customerName,
+        phone,
+        items,
+        total
+    ) {
+
+        this.id = Date.now();
+
+        this.customerName = customerName;
+
+        this.phone = phone;
+
+        this.items = items;
+
+        this.total = total;
+
+        this.status = "NEW";
+
+        this.createdAt =
+            new Date().toISOString();
+    }
+}
+
+
+---
+
+Улучшим Cart.js
+
+Добавим изменение количества.
+
+increase(productId) {
+
+    const item =
+        this.items.find(
+            i => i.id === productId
+        );
+
+    if(item){
+
+        item.qty++;
+
+        this.save();
+    }
+}
+
+decrease(productId) {
+
+    const item =
+        this.items.find(
+            i => i.id === productId
+        );
+
+    if(!item) return;
+
+    item.qty--;
+
+    if(item.qty <= 0){
+
+        this.remove(productId);
+        return;
+    }
+
+    this.save();
+}
+
+
+---
+
+Улучшим UI.js
+
+static renderCart(cart){
+
+    const container =
+        document.querySelector("#cart");
+
+    container.innerHTML = "";
+
+    cart.items.forEach(item=>{
+
+        const div =
+            document.createElement("div");
+
+        div.innerHTML = `
+            <span>
+                ${item.name}
+            </span>
+
+            <button
+                class="minus"
+                data-id="${item.id}"
+            >
+                -
+            </button>
+
+            ${item.qty}
+
+            <button
+                class="plus"
+                data-id="${item.id}"
+            >
+                +
+            </button>
+
+            =
+            ${item.price * item.qty} ₽
+        `;
+
+        container.append(div);
+    });
+
+    document.querySelector(
+        "#total"
+    ).textContent =
+        cart.getTotal();
+}
+
+
+---
+
+Добавляем телефон
+
+В index.html
+
+<input
+    id="customerName"
+    placeholder="Ваше имя"
+/>
+
+<input
+    id="phone"
+    placeholder="+7..."
+/>
+
+
+---
+
+Обновляем оформление заказа
+
+В app.js
+
+const order = {
+
+    customerName:
+        document.querySelector(
+            "#customerName"
+        ).value,
+
+    phone:
+        document.querySelector(
+            "#phone"
+        ).value,
+
+    items:
+        this.cart.items,
+
+    total:
+        this.cart.getTotal()
+};
+
+
+---
+
+Что еще добавить сегодня
+
+Админка
+
+Создай:
+
+admin.html
+
+Сможешь открывать:
+
+GET /orders
+
+И видеть все заказы.
+
+
+---
+
+Статусы
+
+NEW
+COOKING
+READY
+DELIVERED
+CANCELLED
+
+
+---
+
+Номер заказа
+
+Вместо Date.now()
+
+this.orderNumber =
+    Math.floor(
+        1000 +
+        Math.random() * 9000
+    );
+
+Заказчику приятнее видеть:
+
+Заказ #4832
+
+чем
+
+Заказ #1749472847284
+
+
+---
+
+Telegram уведомления (следующий этап)
+
+После создания заказа сервер отправляет сообщение в бот:
+
+Новый заказ
+
+Имя: Данил
+Телефон: +7999...
+Сумма: 870 ₽
+
+Бургер x2
+Кола x1
+
+Это одна из самых ценных фич для MVP доставки: владельцу даже не нужна админка, он сразу видит заказ в Telegram.
+
+На твоём месте я бы следующим сообщением уже собрал полноценную admin.html + admin.js для просмотра заказов и смены статусов без перезагрузки страницы. Это даст ощущение законченного продукта.
